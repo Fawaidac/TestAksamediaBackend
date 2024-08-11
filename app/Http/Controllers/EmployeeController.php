@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Division;
 use App\Models\Employee;
+use Illuminate\Support\Facades\File;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
@@ -103,5 +104,57 @@ class EmployeeController extends Controller
             'status' => 'success',
             'message' => 'Data karyawan berhasil ditambahkan',
         ], 201);
+    }
+
+    public function update(Request $request, $id)
+    {
+        $employee = Employee::findOrFail($id);
+
+        $validator = Validator::make($request->all(), [
+            'name' => 'sometimes|string|max:255',
+            'phone' => 'sometimes|string|max:255',
+            'division_name' => 'sometimes|exists:divisions,name',
+            'position' => 'sometimes|string|max:255',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 400);
+        }
+
+        if ($request->hasFile('image')) {
+            $deleteimage = $employee->image;
+            if ($deleteimage) {
+                File::delete(public_path('images/') . '/' . $deleteimage);
+            }
+
+            $fileNameImage = time() . '.' . $request->image->extension();
+            $request->image->move(public_path('images/'), $fileNameImage);
+            $employee->image = $fileNameImage;
+        }
+
+
+        $division_id = $employee->division_id;
+        if ($request->has('division_name')) {
+            $division = Division::where('name', $request->input('division_name'))->firstOrFail();
+            $division_id = $division->id;
+        }
+
+        $employee->update([
+            'name' => $request->input('name', $employee->name),
+            'phone' => $request->input('phone', $employee->phone),
+            'division_id' => $division_id,
+            'position' => $request->input('position', $employee->position),
+        ]);
+
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Employee updated successfully',
+        ]);
     }
 }
