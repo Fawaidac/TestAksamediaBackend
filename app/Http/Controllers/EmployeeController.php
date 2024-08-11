@@ -157,4 +157,20 @@ class EmployeeController extends Controller
             'message' => 'Employee updated successfully',
         ]);
     }
+
+    public function destroy($id)
+    {
+        $employee = Employee::findOrFail($id);
+
+        if ($employee->image && file_exists(public_path('images/' . $employee->image))) {
+            File::delete(public_path('images/' . $employee->image));
+        }
+
+        $employee->delete();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Employee deleted successfully',
+        ]);
+    }
 }
