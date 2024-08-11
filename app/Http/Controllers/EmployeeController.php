@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Division;
 use App\Models\Employee;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Validator;
 
 class EmployeeController extends Controller
 {
@@ -51,5 +53,55 @@ class EmployeeController extends Controller
                 'to' => $employees->lastItem(),
             ],
         ]);
+    }
+
+    public function store(Request $request)
+    {
+        if (!Auth::check()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Silahkan login dulu',
+            ], 401);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'image' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'name' => 'required|string|max:255',
+            'phone' => 'required|string|max:15',
+            'division_name' => 'required|exists:divisions,name',
+            'position' => 'required|string|max:255',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $validator->errors()->first(),
+            ], 422);
+        }
+
+        $division = Division::where('name', $request->division_name)->first();
+
+        if (!$division) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Divisi tidak ditemukan',
+            ], 404);
+        }
+
+        $fileNameImage = time() . '.' . $request->image->extension();
+        $request->image->move(public_path('images/'), $fileNameImage);
+
+        Employee::create([
+            'image' => $fileNameImage,
+            'name' => $request->name,
+            'phone' => $request->phone,
+            'division_id' => $division->id,
+            'position' => $request->position,
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Data karyawan berhasil ditambahkan',
+        ], 201);
     }
 }
